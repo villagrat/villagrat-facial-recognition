@@ -1,13 +1,22 @@
 import React, { useState } from 'react';
 import ImageLinkFormCSS from './ImageLinkForm.css';
+import axios from 'axios';
 
 const ImageLinkForm = () => {
   const [input, setInput] = useState('');
+  const [faces, setFaces] = useState([]);
+
+  const fetchFaces = async () => {
+    // ToDo: change this to deployed site URL later my dude
+    const res = await axios.get('localhost:5000/api/detect-faces');
+
+    setFaces(res.data);
+  };
 
   const onSubmit = async (event) => {
     event.preventDefault();
 
-    // doRequest();
+    fetchFaces(input);
   };
 
   return (
@@ -27,6 +36,10 @@ const ImageLinkForm = () => {
             </button>
           </div>
         </form>
+      </div>
+      <div>
+        <h1 className="center">FOUND FACES DATA:</h1>
+        <p className="center">{faces}</p>
       </div>
     </div>
   );
