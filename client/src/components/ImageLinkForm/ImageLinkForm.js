@@ -7,10 +7,16 @@ const ImageLinkForm = () => {
   const [faces, setFaces] = useState([]);
 
   const fetchFaces = async () => {
-    // ToDo: change this to deployed site URL later my dude
-    const res = await axios.get('localhost:5000/api/detect-faces');
-
-    setFaces(res.data);
+    // ToDo: change this to deployed site URL
+    try {
+      await axios.get('http://localhost:5000/api/detect-faces', {
+        input,
+        'Content Type': 'application/json',
+      });
+    } catch (err) {
+      console.error(err);
+    }
+    setInput('');
   };
 
   const onSubmit = async (event) => {

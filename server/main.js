@@ -1,7 +1,13 @@
 const express = require('express');
 const fs = require('fs');
 const PImage = require('pureimage');
+const cors = require('cors');
+const axios = require('axios');
+const bodyParser = require('body-parser');
 const app = express();
+
+app.use(bodyParser.json());
+app.use(cors());
 
 // Create the Service Object
 // Imports the Google Cloud client library
@@ -12,25 +18,63 @@ const client = new vision.ImageAnnotatorClient({
   keyFilename: '../villagrat-face-recognition-ea085fb34511.json',
 });
 
+// Local files usage
+// const fileName = '../../../Downloads/harold.jpg';
+
 // Send a face detection request
-// Uses the Vision API to detect faces in the given file
-let faces = {};
-app.get('/api/detect-faces', async (req, res) => {
-  const [result] = await client.faceDetection(fileName);
-  faces = result.faceAnnotations;
-  console.log('Faces:');
-  faces.forEach((face, i) => {
-    console.log(`  Face #${i + 1}:`);
-    console.log(`    Joy: ${face.joyLikelihood}`);
-    console.log(`    Anger: ${face.angerLikelihood}`);
-    console.log(`    Sorrow: ${face.sorrowLikelihood}`);
-    console.log(`    Surprise: ${face.surpriseLikelihood}`);
+// Building a request to the Vision API
+// we will be asking the 'images' resource to 'annotate' the image we send
+// Request should be an Obj {} w/ a requests list []
+// Each item @ list should have:
+//    1. base 64-encoded image data
+//    2. List of features we want annotated about that img
+const getBase64FromUrl = async (url) => {
+  const data = await fetch(url);
+  const blob = await data.blob();
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(blob);
+    reader.onloadend = () => {
+      const base64data = reader.result;
+      resolve(base64data);
+    };
   });
+};
 
-  highlightFaces(fileName, faces, 'highlighted-faces.jpg', PImage);
+// find Will Smith face
+// https://images.ecestaticos.com/YWaVq4WLt4muHY0DswWN1smYUPE=/74x10:2275x2944/560x747/filters:fill(white):format(jpg)/f.elconfidencial.com%2Foriginal%2F409%2Fb87%2F445%2F409b87445e3d24fdee606a8a8e26595c.jpg
 
+app.get('/api/detect-faces', async (req, res) => {
+  // inputFile should be inside the request...
+  const { content } = req.body;
+  console.log('THIS IS THE CONTENT THAT ARRIVES AT THE BE: ', content);
+  // get 64-encoded image data from URL
+  const base64 = getBase64FromUrl(content);
+  const inputFile = {
+    content: base64,
+    source: {
+      imageUri: content,
+    },
+  };
+
+  outputFile = 'highlighted-faces.png';
+  const faces = await detectFaces(inputFile);
+  console.log('Highlighting...');
+  await highlightFaces(inputFile, faces, outerHeight, PImage);
+  console.log('Finished!');
   res.send({});
 });
+
+// Make a call to the Vision API to detect the faces
+async function detectFaces(inputFile) {
+  const request = { image: { source: { fileName: inputFile } } };
+  const results = await client.faceDetection(request);
+  const faces = results[0].faceAnnotations;
+  const numFaces = faces.length;
+  console.log(`Found ${numFaces} face${numFaces === 1 ? '' : 's'}.`);
+  return faces;
+}
+// The response should contain a polygon that lets us draw a rectangle around the found face!
 
 // Draws a polygon around the faces, then saves to outputFile
 async function highlightFaces(inputFile, faces, outputFile, PImage) {
